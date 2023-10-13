@@ -82,6 +82,87 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
+func UpdateTask(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	params := mux.Vars(r)
+	id, err := primitive.ObjectIDFromHex(params["id"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var updatedTask models.ToDoList
+	if err := json.NewDecoder(r.Body).Decode(&updatedTask); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("Received task ID: %s\n", id.Hex())
+	fmt.Printf("Updated task: %+v\n", updatedTask)
+
+	filter := bson.M{"_id": id}
+
+	result, err := collection.ReplaceOne(context.Background(), filter, updatedTask)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message":        "Task updated successfully",
+		"matched_count":  result.MatchedCount,
+		"modified_count": result.ModifiedCount,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+type UpdateStatusPayload struct {
+	Status string `json:"status"`
+}
+
+func UpdateTaskStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	var payload UpdateStatusPayload
+	_ = json.NewDecoder(r.Body).Decode(&payload)
+
+	newStatus := false
+	if payload.Status == "complete" {
+		newStatus = true
+	}
+
+	params := mux.Vars(r)
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"status": newStatus}}
+	log.Println("Attempting to update task with ID:", id)
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Update result:", result)
+
+	fmt.Println("modified count: ", result.ModifiedCount)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":        "Update attempted",
+		"matched_count":  result.MatchedCount,
+		"modified_count": result.ModifiedCount,
+	})
+}
+
 func TaskComplete(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
@@ -91,18 +172,6 @@ func TaskComplete(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	taskComplete(params["id"])
-	json.NewEncoder(w).Encode(params["id"])
-}
-
-func UpdateTask(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "PUT")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	params := mux.Vars(r)
-	updateTask(params["id"])
 	json.NewEncoder(w).Encode(params["id"])
 }
 
@@ -184,7 +253,7 @@ func updateTask(task string) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("modified count: ", result.ModifiedCount)
+	fmt.Println("updateTask countssss: ", result.ModifiedCount)
 }
 
 func deleteOneTask(task string) {
@@ -207,4 +276,42 @@ func deleteAllTask() int64 {
 
 	fmt.Println("Deleted Document", d.DeletedCount)
 	return d.DeletedCount
+}
+
+func MarkTaskComplete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	params := mux.Vars(r)
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"status": true}}
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("modified count: ", result.ModifiedCount)
+	json.NewEncoder(w).Encode(params["id"])
+}
+
+func MarkTaskIncomplete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	params := mux.Vars(r)
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"status": false}}
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("modified count: ", result.ModifiedCount)
+	json.NewEncoder(w).Encode(params["id"])
 }

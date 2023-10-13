@@ -1,0 +1,37 @@
+<form [formGroup]="taskForm" (ngSubmit)="createTask()">
+    <mat-form-field>
+      <input matInput formControlName="taskName" placeholder="New Task">
+    </mat-form-field>
+    <button type="submit" mat-raised-button>Create Task</button>
+  </form>
+  
+  <ul *ngIf="tasks && tasks.length">
+    <li *ngFor="let task of tasks">
+      <div *ngIf="editingTaskId === task._id">
+        <!-- Edit Form -->
+        <form [formGroup]="editTaskForm">
+          <mat-form-field>
+            <input matInput formControlName="taskName" placeholder="Edit Task">
+          </mat-form-field>
+        </form>
+        <button mat-button (click)="saveEditTaskName()">Save</button>
+        <button mat-button (click)="cancelEditTaskName()">Cancel</button>
+      </div>
+  
+      <div *ngIf="editingTaskId !== task._id">
+        <p>{{ task.task }}</p>
+        <button mat-button (click)="startEditTaskName(task)">Edit</button>
+        <mat-form-field>
+          <mat-label>Task Status</mat-label>
+          <mat-select [(value)]="task.status">
+            <mat-option (click)="markAsComplete(task._id)" [value]="true">Complete</mat-option>
+            <mat-option (click)="markAsIncomplete(task._id)" [value]="false">Incomplete</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-button (click)="deleteTask(task._id)">Delete</button>
+      </div>
+    </li>
+  </ul>
+  
+  <button mat-raised-button (click)="deleteAllTasks()">Delete All Tasks</button>
+  
